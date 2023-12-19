@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   control_toolbox
   rosparam_shortcuts
+  serial
 )
 
 ## System dependencies are found with CMake's conventions
