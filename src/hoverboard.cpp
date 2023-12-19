@@ -3,7 +3,6 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-#include <termios.h>
 #include <dynamic_reconfigure/server.h>
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
@@ -70,44 +69,51 @@ Hoverboard::Hoverboard() {
     pids[1].init(nh_right, 1.0, 0.0, 0.0, 0.01, 1.5, -1.5, true, max_velocity, -max_velocity);
     pids[1].setOutputLimits(-max_velocity, max_velocity);
 
-    if ((port_fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY)) < 0) {
-        ROS_FATAL("[hoverboard_driver] Cannot open serial port to hoverboard");
-        exit(-1);
-    }
-    
-    // CONFIGURE THE UART -- connecting to the board
-    // The flags (defined in /usr/include/termios.h - see http://pubs.opengroup.org/onlinepubs/007908799/xsh/termios.h.html):
-    struct termios options;
-    tcgetattr(port_fd, &options);
-    options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;		//<Set baud rate
-    options.c_iflag = IGNPAR;
-    options.c_oflag = 0;
-    options.c_lflag = 0;
-    tcflush(port_fd, TCIFLUSH);
-    tcsetattr(port_fd, TCSANOW, &options);
+    openSerial();
 }
 
 Hoverboard::~Hoverboard() {
-    if (port_fd != -1) 
-        close(port_fd);
+    if (serial_port.isOpen()) {
+        serial_port.close();
+    }
+}
+
+void Hoverboard::openSerial(){
+    if(!serial_port.isOpen()){
+        try {
+            serial_port.setPort(port);
+            serial_port.setBaudrate(115200);
+            auto to = serial::Timeout::simpleTimeout(100);
+            serial_port.setTimeout(to);
+            serial_port.open();
+        } catch (std::exception &e) {
+            ROS_FATAL("[hoverboard_driver] Cannot open serial port %s to hoverboard", port.c_str());
+        }
+    }
 }
 
 void Hoverboard::read() {
-    if (port_fd != -1) {
+    openSerial();
+
+    if (serial_port.isOpen()) {
         unsigned char c;
-        int i = 0, r = 0;
+        int i = 0;
+        size_t r = 0;
 
-        while ((r = ::read(port_fd, &c, 1)) > 0 && i++ < 1024) {
-            protocol_recv(c);
+        try {
+            while(i++ < 1024) {
+                r = serial_port.read(&c, 1);
+                if (r>0) {
+                    protocol_recv(c);
+    	            last_read = ros::Time::now();
+                } else {
+                    ROS_ERROR("[hoverboard_driver] No serial data available");
+                }
+            }
+        } catch (std::exception &e) {
+            ROS_ERROR("[hoverboard_driver] Reading from serial %s failed. Closing Connection.", port.c_str());
+            serial_port.close();
         }
-
-        ROS_INFO("[hoverboard_driver] Read call %d,%d,%d",r,i,c);
-
-        if (i > 0)
-	        last_read = ros::Time::now();
-
-        if (r < 0 && errno != EAGAIN)
-            ROS_ERROR("[hoverboard_driver] Reading from serial %s failed: %d", port.c_str(), r);
     }
 
     if ((ros::Time::now() - last_read).toSec() > 1) {
@@ -184,7 +190,7 @@ void Hoverboard::protocol_recv (char byte) {
 }
 
 void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
-    if (port_fd == -1) {
+    if (!serial_port.isOpen()) {
         ROS_ERROR("[hoverboard_driver] Attempt to write on closed serial");
         return;
     }
@@ -212,8 +218,12 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
     command.speed = (int16_t)set_speed[1];//speed
     command.checksum = (uint16_t)(command.start ^ command.steer ^ command.speed);
 
-    int rc = ::write(port_fd, (const void*)&command, sizeof(command));
-    if (rc < 0) {
+    try {
+        size_t rc = serial_port.write((const void*)&command, sizeof(command));
+        if(rc != sizeof(command)) {
+            ROS_ERROR("[hoverboard_driver] Actual bytes wrote don't match requested");
+        }
+    } catch (std::exception &e) {
         ROS_ERROR("[hoverboard_driver] Error writing to hoverboard serial port");
     }
 }

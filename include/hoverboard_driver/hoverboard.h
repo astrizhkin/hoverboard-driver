@@ -7,6 +7,7 @@
 #include <std_msgs/Float64.h>
 #include <std_msgs/Bool.h>
 #include <dynamic_reconfigure/server.h>
+#include <serial/serial.h>
 #include <string>
 #include "hoverboard_driver/HoverboardConfig.h"
 #include "hoverboard_driver/pid.h"
@@ -25,6 +26,7 @@ public:
  private:
     void protocol_recv (char c);
     void on_encoder_update (int16_t right, int16_t left);
+    void openSerial();
  
     hardware_interface::JointStateInterface joint_state_interface;
     hardware_interface::VelocityJointInterface velocity_joint_interface;
@@ -63,7 +65,7 @@ public:
     int high_wrap;
 
     // Hoverboard protocol
-    int port_fd;
+    serial::Serial serial_port;
     int msg_len = 0;
     char prev_byte = 0;
     uint16_t start_frame = 0;
