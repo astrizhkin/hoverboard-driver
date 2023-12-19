@@ -105,7 +105,6 @@ void Hoverboard::read() {
                 r = serial_port.read(&c, 1);
                 if (r>0) {
                     protocol_recv(c);
-    	            last_read = ros::Time::now();
                 } else {
                     ROS_ERROR("[hoverboard_driver] No serial data available");
                 }
@@ -136,18 +135,18 @@ void Hoverboard::protocol_recv (char byte) {
 
     // Read the start frame
     if (start_frame == START_FRAME) {
-        ROS_INFO("[hoverboard_driver] Start frame");
+        //ROS_INFO("[hoverboard_driver] Start frame");
         p = (char*)&msg;
         *p++ = prev_byte;
         *p++ = byte;
         msg_len = 2;
     } else if (msg_len >= 2 && msg_len < sizeof(SerialFeedback)) {
-        ROS_INFO("[hoverboard_driver] Reading byte %d",byte);
+        //ROS_INFO("[hoverboard_driver] Reading byte %d",byte);
         // Otherwise just read the message content until the end
         *p++ = byte;
         msg_len++;
     } else {
-        ROS_INFO("[hoverboard_driver] Unxpected byte %d",byte);
+        //ROS_INFO("[hoverboard_driver] Unxpected byte %d",byte);
     }
 
     if (msg_len == sizeof(SerialFeedback)) {
@@ -181,6 +180,8 @@ void Hoverboard::protocol_recv (char byte) {
 
             // Process encoder values and update odometry
             on_encoder_update (msg.wheelR_cnt, msg.wheelL_cnt);
+
+            last_read = ros::Time::now();
         } else {
             ROS_WARN("[hoverboard_driver] Hoverboard checksum mismatch: %d vs %d", msg.checksum, checksum);
         }
