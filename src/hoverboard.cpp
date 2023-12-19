@@ -100,7 +100,7 @@ void Hoverboard::read() {
         int i = 0;
         size_t r = 0;
         
-        int[2] returnCode;
+        int returnCode[2];
         returnCode[0]=0;
         returnCode[1]=0;
         int totalReadCalls=0, totalReadBytes=0;
@@ -114,7 +114,7 @@ void Hoverboard::read() {
                     returnCode[protocol_recv(c)]++;
                 } 
             }
-            ROS_INFO("[hoverboard_driver] bytes stats expected %d, unxepected %d, read bytes %d, read calls %d",returnCode[1],returnCode[0],totalReadBytes,totalReadCalls);
+            ROS_INFO("[hoverboard_driver] bytes stats: expected %d, unxepected %d, read bytes %d, read calls %d",returnCode[1],returnCode[0],totalReadBytes,totalReadCalls);
         } catch (std::exception &e) {
             ROS_ERROR("[hoverboard_driver] Reading from serial %s failed. Closing Connection.", port.c_str());
             serial_port.close();
