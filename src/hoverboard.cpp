@@ -219,7 +219,7 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
     command.checksum = (uint16_t)(command.start ^ command.steer ^ command.speed);
 
     try {
-        size_t rc = serial_port.write((const void*)&command, sizeof(command));
+        size_t rc = serial_port.write((const uint8_t*)&command, sizeof(command));
         if(rc != sizeof(command)) {
             ROS_ERROR("[hoverboard_driver] Actual bytes wrote don't match requested");
         }
