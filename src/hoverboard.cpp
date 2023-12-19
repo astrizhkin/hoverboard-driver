@@ -127,20 +127,22 @@ void Hoverboard::protocol_recv (char byte) {
 
     // Read the start frame
     if (start_frame == START_FRAME) {
+        ROS_INFO("[hoverboard_driver] Start frame");
         p = (char*)&msg;
         *p++ = prev_byte;
         *p++ = byte;
         msg_len = 2;
-        ROS_WARN("[hoverboard_driver] Start frame");
     } else if (msg_len >= 2 && msg_len < sizeof(SerialFeedback)) {
+        ROS_INFO("[hoverboard_driver] Reading byte %d",byte);
         // Otherwise just read the message content until the end
         *p++ = byte;
         msg_len++;
     } else {
-        ROS_WARN("[hoverboard_driver] Unxpected byte %d",byte);
+        ROS_INFO("[hoverboard_driver] Unxpected byte %d",byte);
     }
 
     if (msg_len == sizeof(SerialFeedback)) {
+        ROS_INFO("[hoverboard_driver] Got packet");
         uint16_t checksum = (uint16_t)(
             msg.start ^
             msg.cmd1 ^
