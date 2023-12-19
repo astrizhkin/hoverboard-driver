@@ -99,16 +99,22 @@ void Hoverboard::read() {
         unsigned char c;
         int i = 0;
         size_t r = 0;
+        
+        int[2] returnCode;
+        returnCode[0]=0;
+        returnCode[1]=0;
+        int totalReadCalls=0, totalReadBytes=0;
 
         try {
             while(i++ < 1024) {
                 r = serial_port.read(&c, 1);
+                totalReadCalls++;
+                totalReadBytes+=r;
                 if (r>0) {
-                    protocol_recv(c);
-                } else {
-                    ROS_ERROR("[hoverboard_driver] No serial data available");
-                }
+                    returnCode[protocol_recv(c)]++;
+                } 
             }
+            ROS_INFO("[hoverboard_driver] bytes stats expected %d, unxepected %d, read bytes %d, read calls %d",returnCode[1],returnCode[0],totalReadBytes,totalReadCalls);
         } catch (std::exception &e) {
             ROS_ERROR("[hoverboard_driver] Reading from serial %s failed. Closing Connection.", port.c_str());
             serial_port.close();
@@ -130,7 +136,8 @@ void Hoverboard::read() {
 	}
 }
 
-void Hoverboard::protocol_recv (char byte) {
+int Hoverboard::protocol_recv (char byte) {
+    int returnCode;
     start_frame = ((uint16_t)(byte) << 8) | (uint8_t)prev_byte;
 
     // Read the start frame
@@ -140,12 +147,15 @@ void Hoverboard::protocol_recv (char byte) {
         *p++ = prev_byte;
         *p++ = byte;
         msg_len = 2;
+        returnCode = 1;
     } else if (msg_len >= 2 && msg_len < sizeof(SerialFeedback)) {
         //ROS_INFO("[hoverboard_driver] Reading byte %d",byte);
         // Otherwise just read the message content until the end
         *p++ = byte;
         msg_len++;
+        returnCode = 1;
     } else {
+        returnCode = 0;
         //ROS_INFO("[hoverboard_driver] Unxpected byte %d",byte);
     }
 
@@ -188,6 +198,7 @@ void Hoverboard::protocol_recv (char byte) {
         msg_len = 0;
     }
     prev_byte = byte;
+    return returnCode;
 }
 
 void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {

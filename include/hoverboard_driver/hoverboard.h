@@ -24,7 +24,7 @@ public:
     void write(const ros::Time& time, const ros::Duration& period);
     void tick();
  private:
-    void protocol_recv (char c);
+    int protocol_recv (char c);
     void on_encoder_update (int16_t right, int16_t left);
     void openSerial();
  
