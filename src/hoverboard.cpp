@@ -97,8 +97,10 @@ void Hoverboard::read() {
         unsigned char c;
         int i = 0, r = 0;
 
-        while ((r = ::read(port_fd, &c, 1)) > 0 && i++ < 1024)
+        while ((r = ::read(port_fd, &c, 1)) > 0 && i++ < 1024) {
+            ROS_INFO("[hoverboard_driver] Read call %d,%d,%d",r,i,c);
             protocol_recv(c);
+        }
 
         if (i > 0)
 	        last_read = ros::Time::now();
