@@ -136,6 +136,8 @@ void Hoverboard::protocol_recv (char byte) {
         // Otherwise just read the message content until the end
         *p++ = byte;
         msg_len++;
+    } else {
+        ROS_WARN("[hoverboard_driver] Unxpected byte %d",byte);
     }
 
     if (msg_len == sizeof(SerialFeedback)) {
