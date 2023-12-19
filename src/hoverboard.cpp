@@ -49,9 +49,9 @@ Hoverboard::Hoverboard() {
 
     if (!rosparam_shortcuts::get("hoverboard_driver", nh, "port", port)) {
         port = DEFAULT_PORT;
-        ROS_WARN("Port is not set in config, using default %s", port.c_str());
+        ROS_WARN("[hoverboard_driver] Port is not set in config, using default %s", port.c_str());
     } else {
-        ROS_INFO("Using port %s", port.c_str());
+        ROS_INFO("[hoverboard_driver] Using port %s", port.c_str());
     }
 
     // Convert m/s to rad/s
@@ -71,7 +71,7 @@ Hoverboard::Hoverboard() {
     pids[1].setOutputLimits(-max_velocity, max_velocity);
 
     if ((port_fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY)) < 0) {
-        ROS_FATAL("Cannot open serial port to hoverboard");
+        ROS_FATAL("[hoverboard_driver] Cannot open serial port to hoverboard");
         exit(-1);
     }
     
@@ -104,11 +104,11 @@ void Hoverboard::read() {
 	        last_read = ros::Time::now();
 
         if (r < 0 && errno != EAGAIN)
-            ROS_ERROR("Reading from serial %s failed: %d", port.c_str(), r);
+            ROS_ERROR("[hoverboard_driver] Reading from serial %s failed: %d", port.c_str(), r);
     }
 
     if ((ros::Time::now() - last_read).toSec() > 1) {
-        ROS_FATAL("Timeout reading from serial %s failed", port.c_str());
+        ROS_FATAL("[hoverboard_driver] Timeout reading from serial %s failed", port.c_str());
 
         //publish false when not receiving serial data
         std_msgs::Bool b;
@@ -131,6 +131,7 @@ void Hoverboard::protocol_recv (char byte) {
         *p++ = prev_byte;
         *p++ = byte;
         msg_len = 2;
+        ROS_WARN("[hoverboard_driver] Start frame");
     } else if (msg_len >= 2 && msg_len < sizeof(SerialFeedback)) {
         // Otherwise just read the message content until the end
         *p++ = byte;
@@ -168,7 +169,7 @@ void Hoverboard::protocol_recv (char byte) {
             // Process encoder values and update odometry
             on_encoder_update (msg.wheelR_cnt, msg.wheelL_cnt);
         } else {
-            ROS_WARN("Hoverboard checksum mismatch: %d vs %d", msg.checksum, checksum);
+            ROS_WARN("[hoverboard_driver] Hoverboard checksum mismatch: %d vs %d", msg.checksum, checksum);
         }
         msg_len = 0;
     }
@@ -177,7 +178,7 @@ void Hoverboard::protocol_recv (char byte) {
 
 void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
     if (port_fd == -1) {
-        ROS_ERROR("Attempt to write on closed serial");
+        ROS_ERROR("[hoverboard_driver] Attempt to write on closed serial");
         return;
     }
     // Inform interested parties about the commands we've got
@@ -195,18 +196,18 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
     };
 
     // Calculate steering from difference of left and right
-    const double speed = (set_speed[0] + set_speed[1])/2.0;
-    const double steer = (set_speed[0] - speed)*2.0;
+    //const double speed = (set_speed[0] + set_speed[1])/2.0;
+    //const double steer = (set_speed[0] - speed)*2.0;
 
     SerialCommand command;
     command.start = (uint16_t)START_FRAME;
-    command.steer = (int16_t)steer;
-    command.speed = (int16_t)speed;
+    command.steer = (int16_t)set_speed[0];//steer
+    command.speed = (int16_t)set_speed[1];//speed
     command.checksum = (uint16_t)(command.start ^ command.steer ^ command.speed);
 
     int rc = ::write(port_fd, (const void*)&command, sizeof(command));
     if (rc < 0) {
-        ROS_ERROR("Error writing to hoverboard serial port");
+        ROS_ERROR("[hoverboard_driver] Error writing to hoverboard serial port");
     }
 }
 
