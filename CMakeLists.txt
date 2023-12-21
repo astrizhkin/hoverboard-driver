@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   control_toolbox
   rosparam_shortcuts
   serial
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -21,8 +22,18 @@ generate_dynamic_reconfigure_options(
   config/Hoverboard.cfg
 )
 
+add_message_files(
+  DIRECTORY msg
+  FILES HoverboardState.msg HoverboardStateStamped.msg
+)
+
+generate_messages(
+  DEPENDENCIES std_msgs
+)
+
 catkin_package(
   INCLUDE_DIRS include
+  CATKIN_DEPENDS std_msgs message_runtime
 )
 
 include_directories(

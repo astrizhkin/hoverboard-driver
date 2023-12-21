@@ -29,16 +29,6 @@ Hoverboard::Hoverboard() {
     velocity_joint_interface.registerHandle (right_wheel_vel_handle);
     registerInterface(&velocity_joint_interface);
 
-    // These publishers are only for debugging purposes
-    vel_pub[0]    = nh.advertise<std_msgs::Float64>("hoverboard/left_wheel/velocity", 3);
-    vel_pub[1]    = nh.advertise<std_msgs::Float64>("hoverboard/right_wheel/velocity", 3);
-    pos_pub[0]    = nh.advertise<std_msgs::Float64>("hoverboard/left_wheel/position", 3);
-    pos_pub[1]    = nh.advertise<std_msgs::Float64>("hoverboard/right_wheel/position", 3);    
-    cmd_pub[0]    = nh.advertise<std_msgs::Float64>("hoverboard/left_wheel/cmd", 3);
-    cmd_pub[1]    = nh.advertise<std_msgs::Float64>("hoverboard/right_wheel/cmd", 3);
-    voltage_pub   = nh.advertise<std_msgs::Float64>("hoverboard/battery_voltage", 3);
-    temp_pub      = nh.advertise<std_msgs::Float64>("hoverboard/temperature", 3);
-    connected_pub = nh.advertise<std_msgs::Bool>("hoverboard/connected", 3);
 
     std::size_t error = 0;
     error += !rosparam_shortcuts::get("hoverboard_driver", nh, "hoverboard_velocity_controller/wheel_radius", wheel_radius);
@@ -46,7 +36,7 @@ Hoverboard::Hoverboard() {
     error += !rosparam_shortcuts::get("hoverboard_driver", nh, "robaka/direction", direction_correction);
     rosparam_shortcuts::shutdownIfError("hoverboard_driver", error);
 
-    if (!rosparam_shortcuts::get("hoverboard_driver", nh, "port", port)) {
+    if (!rosparam_shortcuts::get("hoverboard_driver", paramNh, "port", port)) {
         port = DEFAULT_PORT;
         ROS_WARN("[hoverboard_driver] Port is not set in config, using default %s", port.c_str());
     } else {
@@ -83,7 +73,7 @@ void Hoverboard::openSerial(){
         try {
             serial_port.setPort(port);
             serial_port.setBaudrate(115200);
-            auto to = serial::Timeout::simpleTimeout(100);
+            auto to = serial::Timeout::simpleTimeout(10);
             serial_port.setTimeout(to);
             serial_port.open();
         } catch (std::exception &e) {
@@ -92,109 +82,95 @@ void Hoverboard::openSerial(){
     }
 }
 
-void Hoverboard::read() {
+bool Hoverboard::read(hoverboard_driver::HoverboardStateStamped& state_msg) {
+    bool gotPacket = false;
     openSerial();
 
     if (serial_port.isOpen()) {
         unsigned char c;
-        int i = 0;
         size_t r = 0;
         
-        int returnCode[2];
-        returnCode[0]=0;
-        returnCode[1]=0;
+        int validBytes=0,invalidBytes=0,inProgressBytes=0;
         int totalReadCalls=0, totalReadBytes=0;
 
         try {
-            while(i++ < 1024) {
+            while(serial_port.available() > 0) {
                 r = serial_port.read(&c, 1);
                 totalReadCalls++;
                 totalReadBytes+=r;
                 if (r>0) {
-                    returnCode[protocol_recv(c)]++;
-                } 
+                    if(protocol_recv(c,state_msg,validBytes,invalidBytes,inProgressBytes)) {
+                        //mark we have packet but read stream to the end
+                        gotPacket = true;
+                    }
+                } else {
+                    break;
+                }
             }
-            ROS_INFO("[hoverboard_driver] bytes stats: expected %d, unxepected %d, read bytes %d, read calls %d",returnCode[1],returnCode[0],totalReadBytes,totalReadCalls);
+            ROS_INFO("[hoverboard_driver] bytes stats: valid %d, invalid %d, read bytes %d, read calls %d",validBytes,invalidBytes,totalReadBytes,totalReadCalls);
         } catch (std::exception &e) {
             ROS_ERROR("[hoverboard_driver] Reading from serial %s failed. Closing Connection.", port.c_str());
             serial_port.close();
         }
     }
 
-    if ((ros::Time::now() - last_read).toSec() > 1) {
-        ROS_FATAL("[hoverboard_driver] Timeout reading from serial %s failed", port.c_str());
-
-        //publish false when not receiving serial data
-        std_msgs::Bool b;
-        b.data = false;
-        connected_pub.publish(b);
-    } else {
-		//we must be connected - publish true
-        std_msgs::Bool b;
-        b.data = true;
-        connected_pub.publish(b);
-	}
+    return gotPacket;
 }
 
-int Hoverboard::protocol_recv (char byte) {
-    int returnCode;
+bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamped& state_msg,int& validBytes,int& invalidBytes,int& inProgressBytes) {
+    bool returnCode = false;
     start_frame = ((uint16_t)(byte) << 8) | (uint8_t)prev_byte;
 
     // Read the start frame
     if (start_frame == START_FRAME) {
-        //ROS_INFO("[hoverboard_driver] Start frame");
         p = (char*)&msg;
         *p++ = prev_byte;
         *p++ = byte;
         msg_len = 2;
-        returnCode = 1;
+        inProgressBytes+=2;
+        invalidBytes--;
     } else if (msg_len >= 2 && msg_len < sizeof(SerialFeedback)) {
-        //ROS_INFO("[hoverboard_driver] Reading byte %d",byte);
         // Otherwise just read the message content until the end
         *p++ = byte;
         msg_len++;
-        returnCode = 1;
+        inProgressBytes++;
     } else {
-        returnCode = 0;
-        //ROS_INFO("[hoverboard_driver] Unxpected byte %d",byte);
+        invalidBytes++;
     }
 
     if (msg_len == sizeof(SerialFeedback)) {
-        ROS_INFO("[hoverboard_driver] Got packet");
         uint16_t checksum = (uint16_t)(
-            msg.start ^
-            msg.cmd1 ^
-            msg.cmd2 ^
-            msg.speedR_meas ^
-            msg.speedL_meas ^
-	        msg.wheelR_cnt ^
-	        msg.wheelL_cnt ^
-            msg.batVoltage ^
-            msg.boardTemp ^
-            msg.cmdLed);
+            msg.start ^ msg.cmd1 ^ msg.cmd2 ^ msg.speedR_meas ^ msg.speedL_meas ^
+	        msg.wheelR_cnt ^ msg.wheelL_cnt ^
+            msg.batVoltage ^ msg.boardTemp ^ msg.cmdLed);
 
         if (msg.start == START_FRAME && msg.checksum == checksum) {
-            std_msgs::Float64 f;
-
-            f.data = (double)msg.batVoltage/100.0;
-            voltage_pub.publish(f);
-
-            f.data = (double)msg.boardTemp/10.0;
-            temp_pub.publish(f);
-
+            state_msg.state.cmdL = (double)msg.cmd1;
+            state_msg.state.cmdR = (double)msg.cmd2;
+            state_msg.state.batVoltage=(double)msg.batVoltage/100.0;
+            state_msg.state.boardTemp=(double)msg.boardTemp/10.0;
+            //state_msg.state.currL_meas = (double)msg.currL_meas;
+            //state_msg.state.currR_meas = (double)msg.currR_meas;
+            //state_msg.state.motorL_temp = (double)msg.motorL_temp/10.0;
+            //state_msg.state.motorR_temp = (double)msg.motorR_temp/10.0;
+            //state_msg.state.status=msg.satus;
             // Convert RPM to RAD/S
             joints[0].vel.data = direction_correction * (abs(msg.speedL_meas) * 0.10472);
             joints[1].vel.data = direction_correction * (abs(msg.speedR_meas) * 0.10472);
-            vel_pub[0].publish(joints[0].vel);
-            vel_pub[1].publish(joints[1].vel);
+            state_msg.state.speedL_meas=joints[0].vel.data;
+            state_msg.state.speedR_meas=joints[1].vel.data;
 
             // Process encoder values and update odometry
-            on_encoder_update (msg.wheelR_cnt, msg.wheelL_cnt);
-
-            last_read = ros::Time::now();
+            on_encoder_update (msg.wheelR_cnt, msg.wheelL_cnt,state_msg);
+            
+            //It is important to update stamp here because on_encoder_update uses previous stamp to reset wheel ticks
+            validBytes+=inProgressBytes;
+            returnCode = true;
         } else {
+            invalidBytes+=inProgressBytes;
             ROS_WARN("[hoverboard_driver] Hoverboard checksum mismatch: %d vs %d", msg.checksum, checksum);
         }
+        inProgressBytes=0;
         msg_len = 0;
     }
     prev_byte = byte;
@@ -207,8 +183,8 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
         return;
     }
     // Inform interested parties about the commands we've got
-    cmd_pub[0].publish(joints[0].cmd);
-    cmd_pub[1].publish(joints[1].cmd);
+    //cmd_pub[0].publish(joints[0].cmd);
+    //cmd_pub[1].publish(joints[1].cmd);
 
     double pid_outputs[2];
     pid_outputs[0] = pids[0](joints[0].vel.data, joints[0].cmd.data, period);
@@ -240,7 +216,7 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
     }
 }
 
-void Hoverboard::on_encoder_update (int16_t right, int16_t left) {
+void Hoverboard::on_encoder_update (int16_t right, int16_t left,hoverboard_driver::HoverboardStateStamped& state_msg) {
     double posL = 0.0, posR = 0.0;
 
     // Calculate wheel position in ticks, factoring in encoder wraps
@@ -267,7 +243,7 @@ void Hoverboard::on_encoder_update (int16_t right, int16_t left) {
     //IF there has been a pause in receiving data AND the new number of ticks is close to zero, indicates a board restard
     //(the board seems to often report 1-3 ticks on startup instead of zero)
     //reset the last read ticks to the startup values
-    if((ros::Time::now() - last_read).toSec() > 0.2
+    if((ros::Time::now() - state_msg.header.stamp).toSec() > 0.2
 		&& abs(posL) < 5 && abs(posR) < 5){
             lastPosL = posL;
             lastPosR = posR;
@@ -291,7 +267,6 @@ void Hoverboard::on_encoder_update (int16_t right, int16_t left) {
     // Convert position in accumulated ticks to position in radians
     joints[0].pos.data = 2.0*M_PI * lastPubPosL/(double)TICKS_PER_ROTATION;
     joints[1].pos.data = 2.0*M_PI * lastPubPosR/(double)TICKS_PER_ROTATION;
-
-    pos_pub[0].publish(joints[0].pos);
-    pos_pub[1].publish(joints[1].pos);
+    state_msg.state.wheelL_cnt=joints[0].pos.data;
+    state_msg.state.wheelR_cnt=joints[1].pos.data;
 }

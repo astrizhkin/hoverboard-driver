@@ -11,6 +11,7 @@
 #include <string>
 #include "hoverboard_driver/HoverboardConfig.h"
 #include "hoverboard_driver/pid.h"
+#include <hoverboard_driver/HoverboardStateStamped.h>
 #include "protocol.h"
 
 class HoverboardAPI;
@@ -20,12 +21,17 @@ public:
     Hoverboard();
     ~Hoverboard();
     
-    void read();
+    bool read(hoverboard_driver::HoverboardStateStamped& state_msg);
     void write(const ros::Time& time, const ros::Duration& period);
     void tick();
+
+    ros::NodeHandle nh;
+    ros::NodeHandle paramNh = ros::NodeHandle("~");
+    std::string port;
+
  private:
-    int protocol_recv (char c);
-    void on_encoder_update (int16_t right, int16_t left);
+    bool protocol_recv (char c,hoverboard_driver::HoverboardStateStamped& state_msg, int& validBytes,int& invalidBytes,int& inProgressBytes);
+    void on_encoder_update (int16_t right, int16_t left,hoverboard_driver::HoverboardStateStamped& state_msg);
     void openSerial();
  
     hardware_interface::JointStateInterface joint_state_interface;
@@ -39,21 +45,10 @@ public:
         std_msgs::Float64 cmd;
     } joints[2];
 
-    // Publishers
-    ros::NodeHandle nh;
-    ros::Publisher vel_pub[2];
-    ros::Publisher pos_pub[2];    
-    ros::Publisher cmd_pub[2];
-    ros::Publisher voltage_pub;
-    ros::Publisher temp_pub;
-    ros::Publisher connected_pub;
-
     double wheel_radius;
     double max_velocity = 0.0;
     int direction_correction = 1;
-    std::string port;
 
-    ros::Time last_read;
     // Last known encoder values
     int16_t last_wheelcountR;
     int16_t last_wheelcountL;
