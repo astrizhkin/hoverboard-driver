@@ -6,6 +6,8 @@
 #include <dynamic_reconfigure/server.h>
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
+#define RPM_TO_RADS_MULTIPLIER 0.104719755
+
 Hoverboard::Hoverboard() {
     hardware_interface::JointStateHandle left_wheel_state_handle("left_wheel",
 								 &joints[0].pos.data,
@@ -161,21 +163,27 @@ bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamp
         uint16_t checksum = (uint16_t)(
             msg.start ^ msg.cmd1 ^ msg.cmd2 ^ msg.speedR_meas ^ msg.speedL_meas ^
 	        msg.wheelR_cnt ^ msg.wheelL_cnt ^
+            msg.currR_meas ^ msg.currL_meas ^ 
+            msg.status ^
             msg.batVoltage ^ msg.boardTemp ^ msg.cmdLed);
 
         if (msg.start == START_FRAME && msg.checksum == checksum) {
-            state_msg.state.cmdL = (double)msg.cmd1;
-            state_msg.state.cmdR = (double)msg.cmd2;
-            state_msg.state.batVoltage=(double)msg.batVoltage/100.0;
-            state_msg.state.boardTemp=(double)msg.boardTemp/10.0;
-            //state_msg.state.currL_meas = (double)msg.currL_meas;
-            //state_msg.state.currR_meas = (double)msg.currR_meas;
+            state_msg.state.cmdL = ((double)msg.cmd1) * RPM_TO_RADS_MULTIPLIER;
+            state_msg.state.cmdR = ((double)msg.cmd2) * RPM_TO_RADS_MULTIPLIER;
+            state_msg.state.batVoltage = (double)msg.batVoltage/100.0;
+            state_msg.state.boardTemp  = (double)msg.boardTemp/10.0;
+            state_msg.state.currL_meas = (double)msg.currL_meas;
+            state_msg.state.currR_meas = (double)msg.currR_meas;
             //state_msg.state.motorL_temp = (double)msg.motorL_temp/10.0;
             //state_msg.state.motorR_temp = (double)msg.motorR_temp/10.0;
-            //state_msg.state.status=msg.satus;
+            state_msg.state.status=msg.status;
+
             // Convert RPM to RAD/S
-            joints[0].vel.data = direction_correction * (abs(msg.speedL_meas) * 0.10472);
-            joints[1].vel.data = direction_correction * (abs(msg.speedR_meas) * 0.10472);
+            joints[0].vel.data = direction_correction * ((double)msg.speedL_meas) * RPM_TO_RADS_MULTIPLIER;
+            joints[1].vel.data = direction_correction * ((double)msg.speedR_meas) * RPM_TO_RADS_MULTIPLIER;
+            //why we need abs? we loose direction
+            //joints[0].vel.data = direction_correction * (abs(msg.speedL_meas) * RPM_TO_RADS_MULTIPLIER);
+            //joints[1].vel.data = direction_correction * (abs(msg.speedR_meas) * RPM_TO_RADS_MULTIPLIER);
             state_msg.state.speedL_meas=joints[0].vel.data;
             state_msg.state.speedR_meas=joints[1].vel.data;
 
@@ -217,8 +225,8 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
 
     // Convert PID outputs in RAD/S to RPM
     double set_speed[2] = {
-        pid_outputs[0] / 0.10472,
-        pid_outputs[1] / 0.10472
+        pid_outputs[0] / RPM_TO_RADS_MULTIPLIER,
+        pid_outputs[1] / RPM_TO_RADS_MULTIPLIER
     };
 
     // Calculate steering from difference of left and right
