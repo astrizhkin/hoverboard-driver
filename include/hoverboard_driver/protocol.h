@@ -23,14 +23,14 @@ typedef struct {
    int16_t  speedL_meas;
    int16_t  wheelR_cnt;
    int16_t  wheelL_cnt; 
-   //int16_t  currR_meas;
-   //int16_t  currL_meas; 
+   int16_t  currR_meas;
+   int16_t  currL_meas; 
    //int16_t  motorR_temp;
    //int16_t  motorL_temp; 
    int16_t  batVoltage;
    int16_t  boardTemp;
    uint16_t cmdLed;
-   //uint16_t status;
+   uint16_t status;
    uint16_t checksum;
 } SerialFeedback;
 
