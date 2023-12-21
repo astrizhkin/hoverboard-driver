@@ -14,6 +14,8 @@
 #include <hoverboard_driver/HoverboardStateStamped.h>
 #include "protocol.h"
 
+// #define DEBUG_BYTES_STATS
+
 class HoverboardAPI;
 
 class Hoverboard : public hardware_interface::RobotHW {
@@ -30,7 +32,11 @@ public:
     std::string port;
 
  private:
-    bool protocol_recv (char c,hoverboard_driver::HoverboardStateStamped& state_msg, int& validBytes,int& invalidBytes,int& inProgressBytes);
+    bool protocol_recv (char c,hoverboard_driver::HoverboardStateStamped& state_msg
+        #ifdef DEBUG_BYTES_STATS
+            , int& validBytes,int& invalidBytes,int& inProgressBytes
+        #endif
+    );
     void on_encoder_update (int16_t right, int16_t left,hoverboard_driver::HoverboardStateStamped& state_msg);
     void openSerial();
  

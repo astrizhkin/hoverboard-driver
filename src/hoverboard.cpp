@@ -90,16 +90,23 @@ bool Hoverboard::read(hoverboard_driver::HoverboardStateStamped& state_msg) {
         unsigned char c;
         size_t r = 0;
         
+        #ifdef DEBUG_BYTES_STATS
         int validBytes=0,invalidBytes=0,inProgressBytes=0;
         int totalReadCalls=0, totalReadBytes=0;
-
+        #endif
         try {
             while(serial_port.available() > 0) {
                 r = serial_port.read(&c, 1);
+                #ifdef DEBUG_BYTES_STATS
                 totalReadCalls++;
                 totalReadBytes+=r;
+                #endif
                 if (r>0) {
-                    if(protocol_recv(c,state_msg,validBytes,invalidBytes,inProgressBytes)) {
+                    if(protocol_recv(c,state_msg 
+                        #ifdef DEBUG_BYTES_STATS 
+                        ,validBytes,invalidBytes,inProgressBytes 
+                        #endif
+                        )) {
                         //mark we have packet but read stream to the end
                         gotPacket = true;
                     }
@@ -107,7 +114,9 @@ bool Hoverboard::read(hoverboard_driver::HoverboardStateStamped& state_msg) {
                     break;
                 }
             }
-            ROS_INFO("[hoverboard_driver] bytes stats: valid %d, invalid %d, read bytes %d, read calls %d",validBytes,invalidBytes,totalReadBytes,totalReadCalls);
+            #ifdef DEBUG_BYTES_STATS 
+                ROS_INFO("[hoverboard_driver] bytes stats: valid %d, invalid %d, read bytes %d, read calls %d",validBytes,invalidBytes,totalReadBytes,totalReadCalls);
+            #endif
         } catch (std::exception &e) {
             ROS_ERROR("[hoverboard_driver] Reading from serial %s failed. Closing Connection.", port.c_str());
             serial_port.close();
@@ -117,7 +126,11 @@ bool Hoverboard::read(hoverboard_driver::HoverboardStateStamped& state_msg) {
     return gotPacket;
 }
 
-bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamped& state_msg,int& validBytes,int& invalidBytes,int& inProgressBytes) {
+bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamped& state_msg
+    #ifdef DEBUG_BYTES_STATS
+        ,int& validBytes,int& invalidBytes,int& inProgressBytes
+    #endif
+    ) {
     bool returnCode = false;
     start_frame = ((uint16_t)(byte) << 8) | (uint8_t)prev_byte;
 
@@ -127,15 +140,21 @@ bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamp
         *p++ = prev_byte;
         *p++ = byte;
         msg_len = 2;
-        inProgressBytes+=2;
-        invalidBytes--;
+        #ifdef DEBUG_BYTES_STATS
+            inProgressBytes+=2;
+            invalidBytes--;
+        #endif
     } else if (msg_len >= 2 && msg_len < sizeof(SerialFeedback)) {
         // Otherwise just read the message content until the end
         *p++ = byte;
         msg_len++;
-        inProgressBytes++;
+        #ifdef DEBUG_BYTES_STATS
+            inProgressBytes++;
+        #endif
     } else {
-        invalidBytes++;
+        #ifdef DEBUG_BYTES_STATS
+            invalidBytes++;
+        #endif
     }
 
     if (msg_len == sizeof(SerialFeedback)) {
@@ -164,13 +183,19 @@ bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamp
             on_encoder_update (msg.wheelR_cnt, msg.wheelL_cnt,state_msg);
             
             //It is important to update stamp here because on_encoder_update uses previous stamp to reset wheel ticks
-            validBytes+=inProgressBytes;
+            #ifdef DEBUG_BYTES_STATS
+                validBytes+=inProgressBytes;
+            #endif
             returnCode = true;
         } else {
-            invalidBytes+=inProgressBytes;
+            #ifdef DEBUG_BYTES_STATS
+                invalidBytes+=inProgressBytes;
+            #endif
             ROS_WARN("[hoverboard_driver] Hoverboard checksum mismatch: %d vs %d", msg.checksum, checksum);
         }
-        inProgressBytes=0;
+        #ifdef DEBUG_BYTES_STATS
+            inProgressBytes=0;
+        #endif
         msg_len = 0;
     }
     prev_byte = byte;
