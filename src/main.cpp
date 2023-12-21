@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
     spinner.start();
 
     ros::Time prev_time = ros::Time::now();
-    ros::Rate rate(100.0);
+    ros::Rate rate(50.0);
 
     ros::Publisher state_pub = hoverboard.paramNh.advertise<hoverboard_driver::HoverboardStateStamped>("state", 3);
     hoverboard_driver::HoverboardStateStamped state_msg;
