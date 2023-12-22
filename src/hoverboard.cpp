@@ -170,10 +170,10 @@ bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamp
         if (msg.start == START_FRAME && msg.checksum == checksum) {
             state_msg.state.cmdL = ((double)msg.cmd1) * RPM_TO_RADS_MULTIPLIER;
             state_msg.state.cmdR = ((double)msg.cmd2) * RPM_TO_RADS_MULTIPLIER;
-            state_msg.state.batVoltage = (double)msg.batVoltage/100.0;
-            state_msg.state.boardTemp  = (double)msg.boardTemp/10.0;
-            state_msg.state.currL_meas = (double)msg.currL_meas;
-            state_msg.state.currR_meas = (double)msg.currR_meas;
+            state_msg.state.batVoltage = ((double)msg.batVoltage)/100.0;
+            state_msg.state.boardTemp  = ((double)msg.boardTemp)/10.0;
+            state_msg.state.currL_meas = ((double)msg.currL_meas)/10.0;
+            state_msg.state.currR_meas = ((double)msg.currR_meas)/10.0;
             //state_msg.state.motorL_temp = (double)msg.motorL_temp/10.0;
             //state_msg.state.motorR_temp = (double)msg.motorR_temp/10.0;
             state_msg.state.status=msg.status;
@@ -215,9 +215,6 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
         ROS_ERROR("[hoverboard_driver] Attempt to write on closed serial");
         return;
     }
-    // Inform interested parties about the commands we've got
-    //cmd_pub[0].publish(joints[0].cmd);
-    //cmd_pub[1].publish(joints[1].cmd);
 
     double pid_outputs[2];
     pid_outputs[0] = pids[0](joints[0].vel.data, joints[0].cmd.data, period);
@@ -225,8 +222,10 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
 
     // Convert PID outputs in RAD/S to RPM
     double set_speed[2] = {
-        pid_outputs[0] / RPM_TO_RADS_MULTIPLIER,
-        pid_outputs[1] / RPM_TO_RADS_MULTIPLIER
+        //pid_outputs[0] / RPM_TO_RADS_MULTIPLIER,
+        //pid_outputs[1] / RPM_TO_RADS_MULTIPLIER
+        joints[0].cmd.data / RPM_TO_RADS_MULTIPLIER,
+        joints[1].cmd.data / RPM_TO_RADS_MULTIPLIER
     };
 
     // Calculate steering from difference of left and right
