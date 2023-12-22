@@ -56,6 +56,7 @@ double PID::operator()(const double &measured_value, const double &setpoint, con
     // Compute final output including feed forward term
     output = f_ * setpoint + output;
     //output = clamp(output, out_min_, out_max_);
+    ROS_INFO("PID computed command %f from setpoint %f and measured %f",output,setpoint,measured_value);
 
     return output;
 }

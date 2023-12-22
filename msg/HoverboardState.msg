@@ -24,10 +24,13 @@ uint8 HOVERBOARD_CONNECTION_STATE_CONNECTED_INCOMPATIBLE_FW=2
 uint8 HOVERBOARD_CONNECTION_STATE_CONNECTED=3
 
 uint8 connection_state
+#rad/s
 float64 cmdR
 float64 cmdL
+#rad/s
 float64 speedR_meas
 float64 speedL_meas
+#rad
 float64 wheelR_cnt
 float64 wheelL_cnt
 float64 currR_meas
