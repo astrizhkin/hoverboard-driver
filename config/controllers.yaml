@@ -31,8 +31,8 @@ hoverboard_velocity_controller:
   odom_frame_id: '/raw_odom'
   enable_odom_tf: false
   #disable this?
-  #publish_cmd: true
-  #publish_wheel_joint_controller_state: true
+  publish_cmd: true
+  publish_wheel_joint_controller_state: true
 
   # Velocity and acceleration limits
   # Whenever a min_* is unspecified, default to -max_*
