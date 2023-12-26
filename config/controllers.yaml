@@ -31,24 +31,24 @@ hoverboard_velocity_controller:
   odom_frame_id: '/raw_odom'
   enable_odom_tf: false
   #disable this?
-  publish_cmd: true
+  publish_cmd: false
   publish_wheel_joint_controller_state: true
 
   # Velocity and acceleration limits
   # Whenever a min_* is unspecified, default to -max_*
   linear:
     x:
-      has_velocity_limits    : false
+      has_velocity_limits    : true
       max_velocity           : 1.0  # m/s
-      has_acceleration_limits: false
+      has_acceleration_limits: true
       max_acceleration       : 0.8  # m/s^2
       has_jerk_limits        : false
       max_jerk               : 0.0  # m/s^3
   angular:
     z:
-      has_velocity_limits    : false # was true
+      has_velocity_limits    : true # was true
       max_velocity           : 6.28  # rad/s
-      has_acceleration_limits: false # was true
-      max_acceleration       : 3.14  # rad/s^2
+      has_acceleration_limits: true # was true
+      max_acceleration       : 1.57  # rad/s^2
       has_jerk_limits        : false
-      max_jerk               : 3.14  # rad/s^3
+      max_jerk               : 0.0  # rad/s^3
