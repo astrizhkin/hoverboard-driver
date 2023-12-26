@@ -21,10 +21,6 @@ int main(int argc, char **argv) {
     hoverboard_driver::HoverboardStateStamped state_msg;
     //state_msg.header.frame_id = hoverboard.paramNh.getNamespace();
     while (ros::ok()) {
-        const ros::Time time = ros::Time::now();
-        const ros::Duration period = time - prev_time;
-        prev_time = time;
-
         if(hoverboard.read(state_msg)) {
             state_msg.state.connection_state = hoverboard_driver::HoverboardState::HOVERBOARD_CONNECTION_STATE_CONNECTED;
             //check connection timout on hoverboard side
@@ -47,6 +43,9 @@ int main(int argc, char **argv) {
             }
         }
 
+        const ros::Time time = ros::Time::now();
+        const ros::Duration period = time - prev_time;
+        prev_time = time;
         cm.update(time, period);
         hoverboard.write(time, period);
 

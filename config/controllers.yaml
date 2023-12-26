@@ -27,7 +27,7 @@ hoverboard_velocity_controller:
 
   # Base frame_id
   base_frame_id: base_footprint #default: base_link
-  allow_multiple_cmd_vel_publishers: true
+  allow_multiple_cmd_vel_publishers: false
   odom_frame_id: '/raw_odom'
   enable_odom_tf: false
   #disable this?

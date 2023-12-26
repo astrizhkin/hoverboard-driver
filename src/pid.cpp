@@ -34,7 +34,7 @@ double PID::operator()(const double &measured_value, const double &setpoint, con
 {
     // Compute error terms
     error_ = setpoint - measured_value;
-    ROS_DEBUG_STREAM_THROTTLE(1, "Error: " << error_);
+    ROS_DEBUG_STREAM_THROTTLE(1, "[hoverboard_driver] Error: " << error_);
 
     // Reset the i_error in case the p_error and the setpoint is zero
     // Otherwise there will always be a constant i_error_ that won't vanish
@@ -51,12 +51,12 @@ double PID::operator()(const double &measured_value, const double &setpoint, con
 
     // Use control_toolbox::Pid::computeCommand()
     double output = computeCommand(error_, dt);
-    ROS_DEBUG_STREAM_THROTTLE(1, "PID computed command: " << output);
+    ROS_DEBUG_STREAM_THROTTLE(1, "[hoverboard_driver] PID computed command: " << output);
 
     // Compute final output including feed forward term
     output = f_ * setpoint + output;
     //output = clamp(output, out_min_, out_max_);
-    ROS_INFO("PID computed command %f from setpoint %f and measured %f",output,setpoint,measured_value);
+    ROS_DEBUG("[hoverboard_driver] PID computed command %f from setpoint %f and measured %f",output,setpoint,measured_value);
 
     return output;
 }
