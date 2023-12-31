@@ -33,8 +33,8 @@ int main(int argc, char **argv) {
         } else {
             if ((ros::Time::now() - state_msg.header.stamp).toSec() > 1) {
                 ROS_ERROR("[hoverboard_driver] No serial %s valid data available for a long period", hoverboard.port.c_str());
-                //reset all feild values
-                state_msg.state = hoverboard_driver::HoverboardState{};
+                //uncomment next line to reset all stale values
+                //state_msg.state = hoverboard_driver::HoverboardState{};
                 //publish DISCONNECTED when not receiving serial data
                 state_msg.state.connection_state = hoverboard_driver::HoverboardState::HOVERBOARD_CONNECTION_STATE_DISCONNECTED;
                 state_msg.header.stamp = ros::Time::now();
