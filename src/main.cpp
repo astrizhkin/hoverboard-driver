@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     Hoverboard hoverboard;
     controller_manager::ControllerManager cm(&hoverboard);
 
-    ros::AsyncSpinner spinner(1);
+        ros::AsyncSpinner spinner(1);
     spinner.start();
 
     ros::Time prev_time = ros::Time::now();
@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     ros::Publisher state_pub = hoverboard.paramNh.advertise<hoverboard_driver::HoverboardStateStamped>("state", 3);
     hoverboard_driver::HoverboardStateStamped state_msg;
     //state_msg.header.frame_id = hoverboard.paramNh.getNamespace();
-    while (ros::ok()) {
+        while (ros::ok()) {
         if(hoverboard.read(state_msg)) {
             state_msg.state.connection_state = hoverboard_driver::HoverboardState::HOVERBOARD_CONNECTION_STATE_CONNECTED;
             //check connection timout on hoverboard side
