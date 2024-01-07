@@ -15,6 +15,7 @@
 #include "protocol.h"
 
 // #define DEBUG_BYTES_STATS
+// #define ENABLE_PID
 
 class HoverboardAPI;
 
@@ -51,8 +52,10 @@ public:
         std_msgs::Float64 cmd;
     } joints[2];
 
+#ifdef ENABLE_PID
     double wheel_radius;
     double max_velocity = 0.0;
+#endif
     int direction_correction = 1;
 
     // Last known encoder values
@@ -73,5 +76,7 @@ public:
     char* p;
     SerialFeedback msg, prev_msg;
 
+#ifdef ENABLE_PID
     PID pids[2];
+#endif
 };

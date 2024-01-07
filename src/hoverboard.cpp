@@ -9,7 +9,7 @@
 #define RPM_TO_RADS_MULTIPLIER 0.104719755
 
 Hoverboard::Hoverboard() {
-    hardware_interface::JointStateHandle left_wheel_state_handle("left_wheel",
+        hardware_interface::JointStateHandle left_wheel_state_handle("left_wheel",
 								 &joints[0].pos.data,
 								 &joints[0].vel.data,
 								 &joints[0].eff.data);
@@ -17,26 +17,29 @@ Hoverboard::Hoverboard() {
 								  &joints[1].pos.data,
 								  &joints[1].vel.data,
 								  &joints[1].eff.data);
-    joint_state_interface.registerHandle (left_wheel_state_handle);
+        joint_state_interface.registerHandle (left_wheel_state_handle);
     joint_state_interface.registerHandle (right_wheel_state_handle);
-    registerInterface(&joint_state_interface);
+        registerInterface(&joint_state_interface);
 
-    hardware_interface::JointHandle left_wheel_vel_handle(
+        hardware_interface::JointHandle left_wheel_vel_handle(
         joint_state_interface.getHandle("left_wheel"),
         &joints[0].cmd.data);
     hardware_interface::JointHandle right_wheel_vel_handle(
         joint_state_interface.getHandle("right_wheel"),
         &joints[1].cmd.data);
-    velocity_joint_interface.registerHandle (left_wheel_vel_handle);
+        velocity_joint_interface.registerHandle (left_wheel_vel_handle);
     velocity_joint_interface.registerHandle (right_wheel_vel_handle);
     registerInterface(&velocity_joint_interface);
 
-
+    ROS_INFO("[hoverboard_driver] get params");
     std::size_t error = 0;
-    error += !rosparam_shortcuts::get("hoverboard_driver", nh, "hoverboard_velocity_controller/wheel_radius", wheel_radius);
-    error += !rosparam_shortcuts::get("hoverboard_driver", nh, "hoverboard_velocity_controller/linear/x/max_velocity", max_velocity);
-    error += !rosparam_shortcuts::get("hoverboard_driver", nh, "robaka/direction", direction_correction);
+#ifdef ENABLE_PID
+    error += !rosparam_shortcuts::get("hoverboard_driver", paramNh, "hoverboard_velocity_controller/wheel_radius", wheel_radius);
+    error += !rosparam_shortcuts::get("hoverboard_driver", paramNh, "hoverboard_velocity_controller/linear/x/max_velocity", max_velocity);
+#endif
+    error += !rosparam_shortcuts::get("hoverboard_driver", paramNh, "direction", direction_correction);
     rosparam_shortcuts::shutdownIfError("hoverboard_driver", error);
+    ROS_INFO("[hoverboard_driver] init other");
 
     if (!rosparam_shortcuts::get("hoverboard_driver", paramNh, "port", port)) {
         port = DEFAULT_PORT;
@@ -46,13 +49,15 @@ Hoverboard::Hoverboard() {
     }
 
     // Convert m/s to rad/s
+#ifdef ENABLE_PID
     max_velocity /= wheel_radius;
-
+#endif
     low_wrap = ENCODER_LOW_WRAP_FACTOR*(ENCODER_MAX - ENCODER_MIN) + ENCODER_MIN;
     high_wrap = ENCODER_HIGH_WRAP_FACTOR*(ENCODER_MAX - ENCODER_MIN) + ENCODER_MIN;
     last_wheelcountR = last_wheelcountL = 0;
     multR = multL = 0;
 
+#ifdef ENABLE_PID
     ros::NodeHandle nh_left(nh, "pid/left");
     ros::NodeHandle nh_right(nh, "pid/right");
     // Init PID controller
@@ -60,7 +65,7 @@ Hoverboard::Hoverboard() {
     pids[0].setOutputLimits(-max_velocity, max_velocity);
     pids[1].init(nh_right, 1.0, 0.0, 0.0, 0.01, 1.5, -1.5, true, max_velocity, -max_velocity);
     pids[1].setOutputLimits(-max_velocity, max_velocity);
-
+#endif
     openSerial();
 }
 
@@ -216,16 +221,20 @@ void Hoverboard::write(const ros::Time& time, const ros::Duration& period) {
         return;
     }
 
+#ifdef ENABLE_PID
     double pid_outputs[2];
     pid_outputs[0] = pids[0](joints[0].vel.data, joints[0].cmd.data, period);
     pid_outputs[1] = pids[1](joints[1].vel.data, joints[1].cmd.data, period);
-
+#endif
     // Convert PID outputs in RAD/S to RPM
     double set_speed[2] = {
-        //pid_outputs[0] / RPM_TO_RADS_MULTIPLIER,
-        //pid_outputs[1] / RPM_TO_RADS_MULTIPLIER
+#ifdef ENABLE_PID
+        pid_outputs[0] / RPM_TO_RADS_MULTIPLIER,
+        pid_outputs[1] / RPM_TO_RADS_MULTIPLIER
+#else
         joints[0].cmd.data / RPM_TO_RADS_MULTIPLIER,
         joints[1].cmd.data / RPM_TO_RADS_MULTIPLIER
+#endif        
     };
 
     // Calculate steering from difference of left and right
