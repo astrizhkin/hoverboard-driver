@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
         if(hoverboard.read(state_msg)) {
             state_msg.state.connection_state = hoverboard_driver::HoverboardState::HOVERBOARD_CONNECTION_STATE_CONNECTED;
             //check connection timout on hoverboard side
-            if(state_msg.state.status & hoverboard_driver::HoverboardState::STATUS_CONN_TIMEOUT > 0) {
+            if( (state_msg.state.status & hoverboard_driver::HoverboardState::STATUS_CONN_TIMEOUT) > 0) {
                 state_msg.state.connection_state = hoverboard_driver::HoverboardState::HOVERBOARD_CONNECTION_STATE_CONNECTED_ONEWAY;
             }
             state_msg.header.stamp = ros::Time::now();
