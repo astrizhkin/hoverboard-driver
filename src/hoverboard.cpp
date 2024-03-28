@@ -169,6 +169,7 @@ bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamp
             msg.start ^ msg.cmd1 ^ msg.cmd2 ^ msg.speedR_meas ^ msg.speedL_meas ^
 	        msg.wheelR_cnt ^ msg.wheelL_cnt ^
             msg.currR_meas ^ msg.currL_meas ^ 
+            msg.motorL_temp ^ msg.motorR_temp ^ 
             msg.status ^
             msg.batVoltage ^ msg.boardTemp ^ msg.cmdLed);
 
@@ -179,8 +180,8 @@ bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamp
             state_msg.state.boardTemp  = ((double)msg.boardTemp)/10.0;
             state_msg.state.currL_meas = ((double)msg.currL_meas)/10.0;
             state_msg.state.currR_meas = ((double)msg.currR_meas)/10.0;
-            //state_msg.state.motorL_temp = (double)msg.motorL_temp/10.0;
-            //state_msg.state.motorR_temp = (double)msg.motorR_temp/10.0;
+            state_msg.state.motorL_temp = (double)msg.motorL_temp/10.0;
+            state_msg.state.motorR_temp = (double)msg.motorR_temp/10.0;
             state_msg.state.status=msg.status;
 
             // Convert RPM to RAD/S
