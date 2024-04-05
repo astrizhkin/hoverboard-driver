@@ -143,6 +143,9 @@ bool Hoverboard::protocol_recv(char byte,hoverboard_driver::HoverboardStateStamp
 
     // Read the start frame
     if (start_frame == START_FRAME) {
+        if(msg_len != 0) {
+            ROS_WARN("[hoverboard_driver] Got frame start but previous frame buffer contains %d bytes", msg_len);
+        }
         p = (char*)&msg;
         *p++ = prev_byte;
         *p++ = byte;

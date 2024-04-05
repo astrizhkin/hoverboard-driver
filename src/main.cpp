@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     Hoverboard hoverboard;
     controller_manager::ControllerManager cm(&hoverboard);
 
-        ros::AsyncSpinner spinner(1);
+    ros::AsyncSpinner spinner(1);
     spinner.start();
 
     ros::Time prev_time = ros::Time::now();
